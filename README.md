@@ -2,7 +2,7 @@
 
 Página web que mostra onde a renda e o patrimônio de uma casa estão na distribuição brasileira, comparados aos 50% com menos renda, ao 1% e ao 0,1% mais ricos.
 
-Versão publicada: https://claude.ai/artifact/AWRzGqQ8SyLeW8BicrDPs9
+Acesse: https://berdfandrade.github.io/calculadora-privilegios/
 
 ## O que tem
 
