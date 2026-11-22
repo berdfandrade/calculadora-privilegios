@@ -1,0 +1,948 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Calculadora de Privilégios</title>
+<meta name="description" content="Veja onde a renda e o patrimônio da sua casa estão na distribuição brasileira, com dados do IBGE, Receita Federal, WID e UBS.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+html { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+body { margin: 0; }
+img { max-width: 100%; }
+[hidden] { display: none !important; }
+/* Layout: uma coluna editorial; em telas largas cada calculadora vira formulário à esquerda + resultado à direita. */
+:root {
+  --bg: #f3f6f4;
+  --surface: #ffffff;
+  --ink: #13211c;
+  --muted: #56675f;
+  --line: #d6dfda;
+  --accent: #0b6b5e;        /* verde-petróleo: a curva do país */
+  --accent-soft: #dcefe9;
+  --you: #f2b705;           /* açafrão: "você está aqui" */
+  --you-ink: #3a2a00;
+  --you-soft: #fff3c7;
+  --low: #e3ecf6;           /* faixa dos 50% de menor renda */
+  --low-ink: #2b4d72;
+  --top: #fbe9d7;           /* faixa do 1% */
+  --top-ink: #8a4a12;
+  --shadow: 0 1px 2px rgba(19,33,28,.06), 0 8px 24px rgba(19,33,28,.06);
+  --f-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --f-body: "Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+  --f-data: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0d1613; --surface: #14201c; --ink: #e5eee9; --muted: #93a69e; --line: #263731;
+    --accent: #4cc0ac; --accent-soft: #173a33; --you: #f5c533; --you-ink: #2a1f00; --you-soft: #3a3115;
+    --low: #1a2a3b; --low-ink: #9cc0e6; --top: #3a2717; --top-ink: #f0b77f;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.25);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0d1613; --surface: #14201c; --ink: #e5eee9; --muted: #93a69e; --line: #263731;
+  --accent: #4cc0ac; --accent-soft: #173a33; --you: #f5c533; --you-ink: #2a1f00; --you-soft: #3a3115;
+  --low: #1a2a3b; --low-ink: #9cc0e6; --top: #3a2717; --top-ink: #f0b77f;
+  --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.25);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink);
+  font-family: var(--f-body); font-size: 17px; line-height: 1.55;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 0 48px;
+  -webkit-font-smoothing: antialiased;
+}
+.wrap { max-width: 1120px; margin: 0 auto; display: flex; flex-direction: column; gap: 56px; }
+h1, h2, h3 { font-family: var(--f-display); text-wrap: balance; margin: 0; line-height: 1.1; }
+p { margin: 0; }
+a { color: var(--accent); text-underline-offset: 3px; }
+:focus-visible { outline: 3px solid var(--you); outline-offset: 2px; border-radius: 6px; }
+.num { font-family: var(--f-data); font-variant-numeric: tabular-nums; }
+.eyebrow { font-family: var(--f-data); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+
+/* Cabeçalho */
+header.hero { padding-top: 48px; display: grid; gap: 20px; max-width: 760px; }
+header.hero h1 { font-size: clamp(38px, 7vw, 68px); font-weight: 800; letter-spacing: -.02em; }
+header.hero h1 em { font-style: normal; background: linear-gradient(transparent 62%, var(--you) 62%, var(--you) 92%, transparent 92%); padding: 0 .08em; }
+header.hero .lede { font-size: clamp(18px, 2.2vw, 21px); color: var(--muted); max-width: 62ch; }
+.jump { display: flex; flex-wrap: wrap; gap: 10px; }
+.jump a { display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px; border-radius: 999px; border: 1.5px solid var(--line); background: var(--surface); color: var(--ink); text-decoration: none; font-weight: 700; }
+.jump a:hover { border-color: var(--accent); }
+.jump a span { font-family: var(--f-data); font-size: 12px; color: var(--muted); font-weight: 500; }
+
+/* Seção de calculadora */
+.calc { display: grid; gap: 24px; scroll-margin-top: 16px; }
+.calc-head { display: grid; gap: 8px; max-width: 70ch; }
+.calc-head h2 { font-size: clamp(28px, 4vw, 40px); font-weight: 700; letter-spacing: -.01em; }
+.calc-head p { color: var(--muted); }
+.calc-body { display: grid; grid-template-columns: minmax(0, 340px) minmax(0, 1fr); gap: 24px; align-items: start; }
+@media (max-width: 860px) { .calc-body { grid-template-columns: minmax(0, 1fr); } }
+
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 22px; box-shadow: var(--shadow); min-width: 0; }
+form.inputs { display: grid; gap: 18px; position: sticky; top: calc(env(safe-area-inset-top, 0px) + 16px); }
+@media (max-width: 860px) { form.inputs { position: static; } }
+.field { display: grid; gap: 6px; }
+.field label { font-weight: 700; font-size: 15px; }
+.field .hint { font-size: 13.5px; color: var(--muted); line-height: 1.4; }
+.money { display: flex; align-items: center; border: 1.5px solid var(--line); border-radius: 12px; background: var(--bg); transition: border-color .15s; }
+.money:focus-within { border-color: var(--accent); }
+.money span { padding: 0 4px 0 14px; color: var(--muted); font-family: var(--f-data); font-size: 15px; }
+.money input { flex: 1; min-width: 0; border: 0; background: transparent; color: var(--ink); font-family: var(--f-data); font-size: 20px; font-weight: 600; padding: 12px 14px 12px 4px; outline: none; font-variant-numeric: tabular-nums; }
+.money.small input { font-size: 17px; padding-block: 10px; }
+.stepper { display: flex; align-items: center; gap: 8px; }
+.stepper button { width: 44px; height: 44px; border-radius: 12px; border: 1.5px solid var(--line); background: var(--bg); color: var(--ink); font-size: 22px; font-weight: 700; cursor: pointer; line-height: 1; }
+.stepper button:hover { border-color: var(--accent); }
+.stepper input { width: 64px; height: 44px; text-align: center; border: 1.5px solid var(--line); border-radius: 12px; background: var(--bg); color: var(--ink); font-family: var(--f-data); font-size: 18px; font-weight: 600; -moz-appearance: textfield; }
+.stepper input::-webkit-outer-spin-button, .stepper input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.presets { display: grid; gap: 8px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chips button { border: 1.5px solid var(--line); background: transparent; color: var(--ink); border-radius: 999px; padding: 6px 12px; font-family: var(--f-data); font-size: 13.5px; cursor: pointer; font-weight: 500; }
+.chips button:hover { border-color: var(--accent); color: var(--accent); }
+.example-tag { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--ink); background: var(--you-soft); border-radius: 999px; padding: 4px 10px; justify-self: start; }
+.derived { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; padding-top: 14px; border-top: 1px dashed var(--line); font-size: 15px; color: var(--muted); }
+.derived strong { color: var(--ink); font-size: 20px; }
+.wealth-grid { display: grid; gap: 12px; }
+.minus label::before { content: "− "; color: var(--top-ink); }
+
+/* Resultados */
+.results { display: grid; gap: 20px; min-width: 0; }
+.verdict { display: grid; gap: 10px; }
+.verdict .big { font-family: var(--f-display); font-size: clamp(26px, 3.6vw, 38px); font-weight: 700; line-height: 1.15; text-wrap: balance; }
+.verdict .big .hl { background: var(--you); color: var(--you-ink); padding: 0 .18em; border-radius: 6px; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
+.verdict .sub { color: var(--muted); max-width: 62ch; }
+.stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 520px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } .stats .stat:last-child { grid-column: 1 / -1; } }
+.stat { display: grid; gap: 2px; padding: 14px; border-radius: 14px; background: var(--bg); border: 1px solid var(--line); min-width: 0; }
+.stat .v { font-family: var(--f-data); font-size: clamp(20px, 2.6vw, 26px); font-weight: 600; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.stat .k { font-size: 13px; color: var(--muted); }
+.badge { display: inline-block; font-size: 13px; font-weight: 700; padding: 3px 10px; border-radius: 999px; justify-self: start; }
+.badge.low { background: var(--low); color: var(--low-ink); }
+.badge.mid { background: var(--accent-soft); color: var(--accent); }
+.badge.high { background: var(--top); color: var(--top-ink); }
+
+.chart-wrap { display: grid; gap: 10px; }
+.chart-wrap h3, .block h3 { font-size: 19px; font-weight: 700; }
+.chart-wrap .cap { font-size: 14px; color: var(--muted); }
+.chart { width: 100%; overflow: hidden; }
+.chart svg { display: block; width: 100%; height: auto; }
+.chart text { font-family: var(--f-data); fill: var(--muted); font-size: 11px; }
+.chart .grid line { stroke: var(--line); stroke-width: 1; }
+.chart .curve { fill: none; stroke: var(--accent); stroke-width: 3; stroke-linejoin: round; stroke-linecap: round; }
+.chart .area { fill: var(--accent); opacity: .08; }
+.chart .band-low { fill: var(--low); }
+.chart .band-top { fill: var(--top); }
+.chart .band-label-low { fill: var(--low-ink); font-weight: 600; }
+.chart .band-label-top { fill: var(--top-ink); font-weight: 600; }
+.chart .break { stroke: var(--muted); stroke-width: 1.5; }
+.chart .ref circle { fill: var(--surface); stroke: var(--accent); stroke-width: 2; }
+.chart .ref text { fill: var(--ink); font-weight: 600; }
+.chart .zero { stroke: var(--muted); stroke-dasharray: 2 3; }
+.chart .guide { stroke: var(--ink); stroke-width: 1; stroke-dasharray: 3 4; opacity: .45; }
+.chart .you-dot { fill: var(--you); stroke: var(--ink); stroke-width: 2.5; }
+.chart .you-halo { fill: var(--you); opacity: .35; transform-box: fill-box; transform-origin: center; animation: pulse 2.2s ease-out infinite; }
+.chart .you-pill { fill: var(--you); }
+.chart .you-text { fill: var(--you-ink); font-weight: 600; font-size: 12px; }
+@keyframes pulse { 0% { transform: scale(.6); opacity: .55; } 80%, 100% { transform: scale(2.2); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .chart .you-halo { animation: none; opacity: .25; } }
+
+.block { display: grid; gap: 12px; }
+.people { display: grid; grid-template-columns: repeat(20, minmax(0, 1fr)); gap: 5px; max-width: 520px; }
+@media (max-width: 520px) { .people { grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 6px; max-width: 300px; } }
+.people i { aspect-ratio: 1; border-radius: 50%; background: transparent; border: 1.5px solid var(--line); transition: background-color .35s, border-color .35s, transform .35s; max-width: 100%; }
+.people i.below { background: var(--accent); border-color: var(--accent); }
+.people i.me { background: var(--you); border-color: var(--ink); transform: scale(1.25); }
+@media (prefers-reduced-motion: reduce) { .people i { transition: none; } }
+
+.pyr .layer { transform-box: fill-box; transform-origin: 50% 100%; animation: rise .7s cubic-bezier(.2,.8,.2,1) backwards; }
+.pyr .layer.s1 { fill: var(--low); }
+.pyr .layer.s2 { fill: var(--accent-soft); }
+.pyr .layer.s3 { fill: var(--top); fill-opacity: .55; }
+.pyr .layer.s4 { fill: var(--top); }
+.pyr .layer.s5 { fill: var(--top-ink); fill-opacity: .5; }
+.pyr .layer.s6 { fill: var(--top-ink); }
+.pyr .layer.here { stroke: var(--ink); stroke-width: 2.5; }
+.pyr .leader { stroke: var(--line); stroke-width: 1; stroke-dasharray: 2 3; }
+.pyr .pl-name { font-family: var(--f-display); font-weight: 700; font-size: 14px; fill: var(--ink); }
+.pyr .pl-detail { font-family: var(--f-data); font-size: 11.5px; fill: var(--muted); }
+.pyr .pl-status { font-family: var(--f-body); font-size: 12.5px; fill: var(--muted); }
+.pyr .pl-status.here { fill: var(--ink); font-weight: 700; }
+.pyr .you-tag { font-family: var(--f-display); font-weight: 700; font-size: 13px; fill: var(--ink); paint-order: stroke; stroke: var(--surface); stroke-width: 4px; stroke-linejoin: round; }
+@keyframes rise { from { transform: scaleY(0); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .pyr .layer { animation: none; } }
+details.more { border-top: 1px solid var(--line); padding-top: 14px; }
+details.more summary { cursor: pointer; font-weight: 700; color: var(--accent); }
+details.more[open] summary { margin-bottom: 12px; }
+
+.split { display: grid; gap: 10px; }
+.split-row { display: grid; grid-template-columns: 84px minmax(0, 1fr); gap: 10px; align-items: center; }
+.split-row .lab { font-size: 13px; color: var(--muted); font-weight: 700; }
+.bar { display: flex; height: 34px; border-radius: 8px; overflow: hidden; border: 1px solid var(--line); }
+.bar span { display: flex; align-items: center; justify-content: center; font-family: var(--f-data); font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; min-width: 0; transition: flex-grow .8s cubic-bezier(.2,.8,.2,1); }
+.s1 { background: var(--low); color: var(--low-ink); }
+.s2 { background: var(--accent-soft); color: var(--accent); }
+.s3 { background: var(--you-soft); color: var(--ink); }
+.s4 { background: var(--top); color: var(--top-ink); }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 13px; color: var(--muted); }
+.legend b { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+.note { font-size: 14px; color: var(--muted); max-width: 70ch; }
+.facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 700px) { .facts { grid-template-columns: minmax(0, 1fr); } }
+.fact { padding: 14px; border-radius: 14px; border: 1px solid var(--line); display: grid; gap: 4px; min-width: 0; }
+.fact .v { font-family: var(--f-display); font-size: 26px; font-weight: 700; }
+.fact .k { font-size: 14px; color: var(--muted); }
+
+/* Reflexão e fontes */
+.reflect { display: grid; gap: 14px; max-width: 760px; }
+.reflect h2 { font-size: clamp(24px, 3vw, 32px); }
+.reflect ul { margin: 0; padding-left: 20px; display: grid; gap: 8px; }
+.sources { display: grid; gap: 16px; border-top: 1px solid var(--line); padding-top: 32px; }
+.sources h2 { font-size: 24px; }
+.sources ol { margin: 0; padding-left: 22px; display: grid; gap: 12px; max-width: 80ch; }
+.sources li { font-size: 15px; }
+.sources li small { display: block; color: var(--muted); font-size: 14px; }
+.method { display: grid; gap: 10px; max-width: 80ch; font-size: 15px; color: var(--muted); }
+.method h3 { font-size: 18px; color: var(--ink); }
+.method ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; }
+footer { font-size: 13px; color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="hero">
+    <span class="eyebrow">Brasil · dados de 2024 e 2025</span>
+    <h1>Onde a sua casa está no <em>mapa da renda</em> do Brasil?</h1>
+    <p class="lede">Digite a renda e o patrimônio da sua casa e veja em que ponto da distribuição brasileira você está, comparado aos 50% com menos renda, ao 1% e ao 0,1% mais ricos. A conta usa dados públicos do IBGE, da Receita Federal, do World Inequality Database e do UBS. Nada do que você digita sai do seu navegador.</p>
+    <nav class="jump" aria-label="Ir para a calculadora">
+      <a href="#renda">Renda mensal <span>IBGE + Receita</span></a>
+      <a href="#patrimonio">Patrimônio <span>WID + UBS</span></a>
+      <a href="#fontes">Fontes e método</a>
+    </nav>
+  </header>
+
+  <!-- ============ RENDA ============ -->
+  <section class="calc" id="renda" aria-labelledby="renda-h">
+    <div class="calc-head">
+      <span class="eyebrow">1 · Renda</span>
+      <h2 id="renda-h">Renda da casa por pessoa</h2>
+      <p>O IBGE compara as pessoas pela renda domiciliar per capita: tudo o que entra na casa por mês (salários, aposentadorias, aluguéis, benefícios), dividido por quem mora nela.</p>
+    </div>
+    <div class="calc-body">
+      <form class="panel inputs" id="f-renda" autocomplete="off">
+        <span class="example-tag" id="renda-example">Valores de exemplo. Troque pelos seus.</span>
+        <div class="field">
+          <label for="renda-total">Renda mensal da casa</label>
+          <div class="money"><span>R$</span><input id="renda-total" inputmode="numeric" value="5.000" aria-describedby="renda-total-hint"></div>
+          <span class="hint" id="renda-total-hint">Some a renda bruta de todos os moradores, de todas as fontes.</span>
+        </div>
+        <div class="field">
+          <label for="renda-pessoas">Pessoas que vivem dessa renda</label>
+          <div class="stepper">
+            <button type="button" data-step="-1" data-target="renda-pessoas" aria-label="Menos uma pessoa">−</button>
+            <input id="renda-pessoas" type="number" min="1" max="30" value="2" inputmode="numeric">
+            <button type="button" data-step="1" data-target="renda-pessoas" aria-label="Mais uma pessoa">+</button>
+          </div>
+          <span class="hint">Inclua crianças e idosos. Morando sozinho, deixe 1.</span>
+        </div>
+        <div class="presets">
+          <span class="hint">Experimente uma renda da casa (1 pessoa):</span>
+          <div class="chips" id="renda-chips">
+            <button type="button" data-v="1500">R$ 1.500</button>
+            <button type="button" data-v="5000">R$ 5.000</button>
+            <button type="button" data-v="30000">R$ 30.000</button>
+            <button type="button" data-v="200000">R$ 200.000</button>
+          </div>
+        </div>
+        <div class="derived"><span>Renda por pessoa</span><strong class="num" id="renda-pc">R$ 2.500</strong></div>
+      </form>
+
+      <div class="panel results">
+        <div class="verdict" aria-live="polite">
+          <span class="badge mid" id="renda-badge">Faixa do meio</span>
+          <p class="big" id="renda-big">Você tem renda maior que <span class="hl">78%</span> dos brasileiros.</p>
+          <p class="sub" id="renda-sub"></p>
+        </div>
+        <div class="stats">
+          <div class="stat"><span class="k">Percentil</span><span class="v" id="renda-p">P78</span></div>
+          <div class="stat"><span class="k">Decil</span><span class="v" id="renda-d">8º</span></div>
+          <div class="stat"><span class="k">Comparado à mediana</span><span class="v" id="renda-x">1,7×</span></div>
+        </div>
+        <div class="chart-wrap">
+          <h3>A pirâmide da renda no Brasil</h3>
+          <p class="cap">Da base, os 50% de menor renda, ao topo, o 0,01% mais rico. A largura de cada camada acompanha o tamanho do grupo em escala logarítmica: em escala normal, o topo seria fino demais para enxergar.</p>
+          <div class="chart pyr" id="renda-pyr"></div>
+        </div>
+        <div class="block">
+          <h3>Se o Brasil fosse 100 pessoas</h3>
+          <div class="people" id="renda-people" aria-hidden="true"></div>
+          <p class="note" id="renda-people-cap"></p>
+        </div>
+        
+        <div class="block">
+          <h3>Quem fica com que fatia da renda</h3>
+          <div class="split">
+            <div class="split-row"><span class="lab">Pessoas</span><div class="bar"><span class="s1" style="flex-grow:50">50%</span><span class="s2" style="flex-grow:40">40%</span><span class="s3" style="flex-grow:9">9%</span><span class="s4" style="flex-grow:1"></span></div></div>
+            <div class="split-row"><span class="lab">Renda</span><div class="bar"><span class="s1" style="flex-grow:17.5">17,5%</span><span class="s2" style="flex-grow:42.2">42,2%</span><span class="s3" style="flex-grow:29.3">29,3%</span><span class="s4" style="flex-grow:11">11%</span></div></div>
+          </div>
+          <div class="legend"><span><b class="s1"></b>50% com menos renda</span><span><b class="s2"></b>40% do meio</span><span><b class="s3"></b>9% seguintes</span><span><b class="s4"></b>1% mais rico</span></div>
+          <p class="note">Metade da população fica com 17,5% de toda a renda domiciliar. O 1% do topo, sozinho, fica com 11%. Fonte: IBGE, PNAD Contínua 2025. A pesquisa capta mal as rendas mais altas, então a fatia real do topo é maior: pelos dados da Receita Federal, o 0,1% mais rico concentra mais de 10% da renda do país.</p>
+        </div>
+        <details class="more">
+          <summary>Ver a curva detalhada, percentil por percentil</summary>
+          <div class="chart-wrap">
+            <p class="cap">Cada ponto da linha mostra a renda por pessoa de quem está naquele percentil, da menor para a maior. O trecho da direita amplia o 1% mais rico, onde a curva dispara. Escala logarítmica: cada linha de grade vale 10 vezes a de baixo.</p>
+            <div class="chart" id="renda-chart"></div>
+          </div>
+        </details>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ PATRIMÔNIO ============ -->
+  <section class="calc" id="patrimonio" aria-labelledby="pat-h">
+    <div class="calc-head">
+      <span class="eyebrow">2 · Patrimônio</span>
+      <h2 id="pat-h">Patrimônio líquido por adulto</h2>
+      <p>Patrimônio é o que você tem menos o que você deve. A riqueza é bem mais concentrada que a renda: uma parte grande dos brasileiros tem quase nada guardado, e cerca de 1 em cada 10 adultos deve mais do que tem.</p>
+    </div>
+    <div class="calc-body">
+      <form class="panel inputs" id="f-pat" autocomplete="off">
+        <span class="example-tag" id="pat-example">Valores de exemplo. Troque pelos seus.</span>
+        <div class="wealth-grid">
+          <div class="field">
+            <label for="w-imoveis">Imóveis</label>
+            <div class="money small"><span>R$</span><input id="w-imoveis" inputmode="numeric" value="250.000"></div>
+            <span class="hint">Valor de mercado de casa, apartamento, terreno.</span>
+          </div>
+          <div class="field">
+            <label for="w-veiculos">Veículos</label>
+            <div class="money small"><span>R$</span><input id="w-veiculos" inputmode="numeric" value="40.000"></div>
+          </div>
+          <div class="field">
+            <label for="w-invest">Dinheiro guardado e investimentos</label>
+            <div class="money small"><span>R$</span><input id="w-invest" inputmode="numeric" value="20.000"></div>
+            <span class="hint">Poupança, conta, aplicações, ações, previdência, FGTS.</span>
+          </div>
+          <div class="field">
+            <label for="w-outros">Outros bens</label>
+            <div class="money small"><span>R$</span><input id="w-outros" inputmode="numeric" value="0"></div>
+            <span class="hint">Participação em empresa, terra, equipamentos.</span>
+          </div>
+          <div class="field minus">
+            <label for="w-dividas">Dívidas</label>
+            <div class="money small"><span>R$</span><input id="w-dividas" inputmode="numeric" value="120.000"></div>
+            <span class="hint">Saldo de financiamentos, empréstimos, cartão.</span>
+          </div>
+          <div class="field">
+            <label for="w-adultos">Adultos que dividem esse patrimônio</label>
+            <div class="stepper">
+              <button type="button" data-step="-1" data-target="w-adultos" aria-label="Menos um adulto">−</button>
+              <input id="w-adultos" type="number" min="1" max="20" value="2" inputmode="numeric">
+              <button type="button" data-step="1" data-target="w-adultos" aria-label="Mais um adulto">+</button>
+            </div>
+            <span class="hint">Pessoas com 20 anos ou mais. Para um casal, use 2.</span>
+          </div>
+        </div>
+        <div class="derived"><span>Patrimônio por adulto</span><strong class="num" id="pat-pa">R$ 95.000</strong></div>
+      </form>
+
+      <div class="panel results">
+        <div class="verdict" aria-live="polite">
+          <span class="badge mid" id="pat-badge">Faixa do meio</span>
+          <p class="big" id="pat-big"></p>
+          <p class="sub" id="pat-sub"></p>
+        </div>
+        <div class="stats">
+          <div class="stat"><span class="k">Percentil</span><span class="v" id="pat-p">P65</span></div>
+          <div class="stat"><span class="k">Decil</span><span class="v" id="pat-d">7º</span></div>
+          <div class="stat"><span class="k">Comparado à mediana</span><span class="v" id="pat-x">1,8×</span></div>
+        </div>
+        <div class="chart-wrap">
+          <h3>A pirâmide da riqueza no Brasil</h3>
+          <p class="cap">Da base, os 50% de adultos com menos patrimônio, ao topo, o 0,01% mais rico. A largura de cada camada acompanha o tamanho do grupo em escala logarítmica.</p>
+          <div class="chart pyr" id="pat-pyr"></div>
+        </div>
+        <div class="block">
+          <h3>Se o Brasil fosse 100 adultos</h3>
+          <div class="people" id="pat-people" aria-hidden="true"></div>
+          <p class="note" id="pat-people-cap"></p>
+        </div>
+        
+        <div class="block">
+          <h3>Quem fica com que fatia da riqueza</h3>
+          <div class="split">
+            <div class="split-row"><span class="lab">Adultos</span><div class="bar"><span class="s1" style="flex-grow:50">50%</span><span class="s2" style="flex-grow:40">40%</span><span class="s3" style="flex-grow:9">9%</span><span class="s4" style="flex-grow:1"></span></div></div>
+            <div class="split-row"><span class="lab">Riqueza</span><div class="bar"><span class="s1" style="flex-grow:2">2%</span><span class="s2" style="flex-grow:26.1">26,1%</span><span class="s3" style="flex-grow:32.4">32,4%</span><span class="s4" style="flex-grow:39.5">39,5%</span></div></div>
+          </div>
+          <div class="legend"><span><b class="s1"></b>50% com menos patrimônio</span><span><b class="s2"></b>40% do meio</span><span><b class="s3"></b>9% seguintes</span><span><b class="s4"></b>1% mais rico</span></div>
+          <p class="note">O 1% mais rico tem quase 40% de toda a riqueza das famílias. A metade de baixo, somada, tem 2%. Fonte: World Inequality Database, estimativa para 2024.</p>
+        </div>
+        <div class="block">
+          <h3>O que diz o UBS Global Wealth Report 2026</h3>
+          <div class="facts">
+            <div class="fact"><span class="v num">~69%</span><span class="k">dos adultos têm patrimônio abaixo de US$ 10 mil (cerca de R$ 55 mil no câmbio de 31/12/2025).</span></div>
+            <div class="fact"><span class="v num">~386 mil</span><span class="k">brasileiros têm mais de US$ 1 milhão (cerca de R$ 5,5 milhões) no fim de 2025.</span></div>
+            <div class="fact"><span class="v num">0,81</span><span class="k">é o Gini da riqueza no Brasil, o 4º mais desigual entre 56 países analisados.</span></div>
+          </div>
+          <p class="note">O UBS usa outro método e outra moeda, então seus números não batem exatamente com os do WID. Pelo WID, a mediana fica perto de R$ 52 mil por adulto. Pelo UBS, mais da metade dos adultos está abaixo de R$ 55 mil. As duas fontes concordam no essencial: a riqueza no Brasil é muito concentrada.</p>
+        </div>
+        <details class="more">
+          <summary>Ver a curva detalhada, percentil por percentil</summary>
+          <div class="chart-wrap">
+            <p class="cap">Patrimônio líquido por adulto em cada percentil. À esquerda, abaixo da linha pontilhada, estão os adultos com mais dívidas do que bens. A escala comprime os valores grandes para que a base e o topo caibam no mesmo gráfico.</p>
+            <div class="chart" id="pat-chart"></div>
+          </div>
+        </details>
+      </div>
+    </div>
+  </section>
+
+  <section class="reflect" aria-labelledby="ref-h">
+    <h2 id="ref-h">Como ler o resultado</h2>
+    <ul>
+      <li>O percentil mostra uma posição, não um merecimento. Onde cada pessoa está depende muito de onde nasceu, da escolaridade dos pais, de cor, gênero e região.</li>
+      <li>Ficar no topo da renda não quer dizer sobrar dinheiro. Custo de vida, aluguel, dívidas e dependentes mudam muito o dia a dia.</li>
+      <li>A maior parte dos brasileiros vive com pouco: metade da população tem até R$ 1.490 por mês por pessoa na casa.</li>
+      <li>Saber a própria posição ajuda a entender debates como a isenção do Imposto de Renda até R$ 5 mil e o imposto mínimo para quem ganha acima de R$ 600 mil por ano.</li>
+    </ul>
+  </section>
+
+  <section class="sources" id="fontes" aria-labelledby="fontes-h">
+    <h2 id="fontes-h">Fontes</h2>
+    <ol>
+      <li><strong>IBGE, PNAD Contínua, Rendimento de todas as fontes, 2025.</strong> Limites superiores dos percentis P5 a P99 da renda domiciliar per capita, a preços médios de 2025 (<a href="https://sidra.ibge.gov.br/tabela/7526" target="_blank" rel="noopener">tabela SIDRA 7526</a>), distribuição da massa de rendimento (<a href="https://sidra.ibge.gov.br/tabela/7530" target="_blank" rel="noopener">tabela 7530</a>) e rendimento médio por faixa (<a href="https://sidra.ibge.gov.br/tabela/7531" target="_blank" rel="noopener">tabela 7531</a>).
+        <small>Usado para quase toda a curva da renda: P50 = R$ 1.490, P90 = R$ 4.609, P99 = R$ 15.214 por pessoa por mês.</small></li>
+      <li><strong>Ministério da Fazenda, “Isenção IR e Tributação de altas rendas”, PL nº 1.087/2025 (maio de 2025), com dados da Receita Federal (IRPF).</strong> <a href="https://www.gov.br/fazenda/pt-br/acesso-a-informacao/acoes-e-programas/brasil-mais-justo/apresentacoes/20250502-pl-1087.pdf/@@download/file" target="_blank" rel="noopener">Apresentação em PDF</a>.
+        <small>Usado para o topo: cerca de 141 mil pessoas, 0,06% da população, têm rendimentos acima de R$ 600 mil por ano (R$ 50 mil por mês). A mesma apresentação, citando Gobetti (2024), diz que o 0,1% mais rico concentra mais de 10% da renda do país.</small></li>
+      <li><strong>World Inequality Database (WID.world), atualização de 2026.</strong> Limiares de patrimônio líquido pessoal por adulto (20 anos ou mais, divisão igual dentro do casal), ano de 2024, em reais a preços de 2025, e formato da cauda da renda pré-imposto de 2025. <a href="https://wid.world/country/brazil/" target="_blank" rel="noopener">Página do Brasil no WID</a>.
+        <small>Usado para toda a curva do patrimônio (P50 = R$ 51.671, P90 = R$ 411.818, P99 = R$ 2,12 milhões, P99,9 = R$ 11,99 milhões) e para estender a curva de renda acima de R$ 50 mil.</small></li>
+      <li><strong>UBS, Global Wealth Report 2026 (dados do fim de 2025).</strong> <a href="https://www.ubs.com/global/en/wealthmanagement/insights/global-wealth-report.html" target="_blank" rel="noopener">Relatório</a>.
+        <small>Parcela de adultos abaixo de US$ 10 mil, número de milionários em dólar e Gini da riqueza. Câmbio de conversão: PTAX de venda do Banco Central em 31/12/2025, R$ 5,5024.</small></li>
+    </ol>
+    <div class="method">
+      <h3>Como a conta é feita</h3>
+      <ul>
+        <li>Os números são aproximações. As fontes publicam limites por faixas (P5, P10, P20…). Entre um limite e outro, o percentil é interpolado em linha reta; no 1% do topo, a interpolação é feita em escala logarítmica.</li>
+        <li>Entre o P99 do IBGE (R$ 15.214) e R$ 50 mil por mês, a curva segue uma distribuição de Pareto ligando o dado do IBGE ao da Receita Federal (0,06% acima de R$ 50 mil). Acima de R$ 50 mil, ela segue a proporção entre os percentis do topo estimada pelo WID. Por isso o 0,1% mais rico começa em torno de R$ 40 mil por pessoa por mês nesta calculadora.</li>
+        <li>A PNAD mede renda declarada em entrevista e subestima as rendas altas. A Receita mede a renda de cada declarante, não da casa. Para combinar as duas, a calculadora trata a renda por pessoa como se fosse a renda individual.</li>
+        <li>O patrimônio do WID é por adulto, com o patrimônio do casal dividido em partes iguais. Por isso a calculadora divide o patrimônio da casa pelo número de adultos.</li>
+        <li>Os valores estão em reais de 2025 e não foram corrigidos pela inflação de 2026. A posição pode mudar alguns pontos percentuais.</li>
+      </ul>
+    </div>
+    <footer>Página informativa, sem coleta de dados. Os cálculos rodam no seu navegador.</footer>
+  </section>
+</div>
+
+<script>
+(() => {
+  "use strict";
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const nf0 = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 0 });
+
+  // ---------- Dados ----------
+  // IBGE, PNAD Contínua 2025, SIDRA 7526: limites superiores das classes (R$/mês por pessoa, preços de 2025)
+  const IBGE = [[0,0],[5,299],[10,451],[20,694],[30,906],[40,1154],[50,1490],[60,1697],[70,2158],[80,2958],[90,4609],[95,6900],[99,15214]];
+  // Receita Federal / Fazenda (PL 1.087/2025): 0,06% da população acima de R$ 50 mil/mês
+  const P99 = 15214, TOP_V = 50000, TOP_SHARE = 0.0006;
+  const ALPHA = Math.log(0.01 / TOP_SHARE) / Math.log(TOP_V / P99); // ≈ 2,37
+  // WID 2026, tptinc992j 2025: limiar do percentil ÷ limiar do P99,94
+  const WID_TAIL = [[99.95,1.088],[99.96,1.192],[99.97,1.315],[99.98,1.462],[99.99,1.732],[99.991,1.801],[99.992,1.887],[99.993,1.995],[99.994,2.139],[99.995,2.336],[99.996,2.626],[99.997,3.099],[99.998,4.014],[99.999,6.616]];
+  const INCOME = IBGE.slice();
+  [99.1,99.2,99.3,99.4,99.5,99.6,99.7,99.8,99.9,99.91,99.92,99.93,99.94].forEach(p => {
+    const share = (100 - p) / 100;
+    INCOME.push([p, P99 * Math.pow(share / 0.01, -1 / ALPHA)]);
+  });
+  WID_TAIL.forEach(([p, r]) => INCOME.push([p, TOP_V * r]));
+
+  // WID 2026, thweal992j 2024: patrimônio líquido por adulto (R$ de 2025)
+  const WEALTH = [[0,-482163],[1,-152261],[2,-50032],[3,-28055],[4,-17962],[5,-12532],[6,-8865],[7,-6143],[8,-3980],[9,-2114],[10,-500],[11,948],[12,2367],[13,3615],[14,4662],[15,5654],[16,6621],[17,7497],[18,8255],[19,8932],[20,9585],[21,10291],[22,11060],[23,11869],[24,12724],[25,13636],[26,14635],[27,15700],[28,16540],[29,17508],[30,18472],[31,20070],[32,21265],[33,22558],[34,23942],[35,25404],[36,26913],[37,28482],[38,30044],[39,31558],[40,33037],[41,34533],[42,36149],[43,37911],[44,39799],[45,41792],[46,43856],[47,45916],[48,47911],[49,49829],[50,51671],[51,53546],[52,55632],[53,57975],[54,60480],[55,63059],[56,65676],[57,67612],[58,70064],[59,72614],[60,76790],[61,79890],[62,83236],[63,86866],[64,90719],[65,94736],[66,98981],[67,103417],[68,108176],[69,113418],[70,118847],[71,124337],[72,130292],[73,136828],[74,143745],[75,151047],[76,158964],[77,167892],[78,177568],[79,187600],[80,198302],[81,210108],[82,223393],[83,238530],[84,255408],[85,274156],[86,295357],[87,319329],[88,346201],[89,376469],[90,411818],[91,453539],[92,502941],[93,563039],[94,636969],[95,732303],[96,866967],[97,1074582],[98,1487582],[99,2121793],[99.1,2567397],[99.2,2777945],[99.3,3053740],[99.4,3430281],[99.5,3952629],[99.6,4705910],[99.7,5934324],[99.8,8429269],[99.9,11992390],[99.91,14402622],[99.92,15696561],[99.93,17444654],[99.94,19795444],[99.95,22758000],[99.96,26722836],[99.97,32716594],[99.98,43798836],[99.99,61410076],[99.991,74380160],[99.992,80089840],[99.993,87357808],[99.994,96762360],[99.995,108577624],[99.996,125047048],[99.997,147600256],[99.998,196214080],[99.999,906130688]];
+
+  const P_MAX = 99.9995; // além do último limite publicado
+
+  // Interpolação entre limites publicados: linear; em escala log no 1% do topo.
+  function seg(a, b, t) { return a + (b - a) * t; }
+  function percentileOf(table, v) {
+    if (v <= table[0][1]) return table[0][0];
+    const last = table[table.length - 1];
+    if (v >= last[1]) return P_MAX;
+    for (let i = 1; i < table.length; i++) {
+      const [p0, v0] = table[i - 1], [p1, v1] = table[i];
+      if (v < v1) {
+        if (p0 >= 99 && v0 > 0) return seg(p0, p1, Math.log(v / v0) / Math.log(v1 / v0));
+        return seg(p0, p1, (v - v0) / (v1 - v0));
+      }
+    }
+    return P_MAX;
+  }
+  function valueAt(table, p) {
+    if (p <= table[0][0]) return table[0][1];
+    for (let i = 1; i < table.length; i++) {
+      const [p0, v0] = table[i - 1], [p1, v1] = table[i];
+      if (p <= p1) {
+        const t = (p - p0) / (p1 - p0);
+        if (p0 >= 99 && v0 > 0) return v0 * Math.pow(v1 / v0, t);
+        return seg(v0, v1, t);
+      }
+    }
+    return table[table.length - 1][1];
+  }
+  window.__calc = { percentileOf, valueAt, INCOME, WEALTH, ALPHA };
+
+  // ---------- Formatação ----------
+  function brl(v) {
+    const s = v < 0 ? "−" : "";
+    const a = Math.abs(v);
+    if (a >= 1e9) return `${s}R$ ${(a / 1e9).toLocaleString("pt-BR", { maximumFractionDigits: 2 })} bi`;
+    if (a >= 1e6) return `${s}R$ ${(a / 1e6).toLocaleString("pt-BR", { maximumFractionDigits: 2 })} mi`;
+    return `${s}R$ ${nf0.format(Math.round(a))}`;
+  }
+  function brlShort(v) {
+    const s = v < 0 ? "−" : "";
+    const a = Math.abs(v);
+    if (a >= 1e9) return `${s}R$ ${(a / 1e9).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} bi`;
+    if (a >= 1e6) return `${s}R$ ${(a / 1e6).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} mi`;
+    if (a >= 1e3) return `${s}R$ ${(a / 1e3).toLocaleString("pt-BR", { maximumFractionDigits: a >= 1e4 ? 0 : 1 })} mil`;
+    return `${s}R$ ${nf0.format(a)}`;
+  }
+  function pctText(p) {
+    if (p >= P_MAX) return "99,999";
+    const d = p < 99 ? (p < 1 ? 1 : 0) : p < 99.9 ? 1 : p < 99.99 ? 2 : 3;
+    let f = Math.floor(p * 10 ** d) / 10 ** d; // arredonda para baixo: nunca exagera a posição
+    return f.toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: d });
+  }
+  function oneIn(p) {
+    const n = 100 / (100 - Math.min(p, P_MAX));
+    if (n < 20) return nf0.format(Math.round(n));
+    if (n < 1000) return nf0.format(Math.round(n / 5) * 5);
+    if (n < 10000) return nf0.format(Math.round(n / 100) * 100);
+    return nf0.format(Math.round(n / 1000) * 1000);
+  }
+  function times(x) {
+    if (!isFinite(x)) return "—";
+    if (x >= 100) return `${nf0.format(Math.round(x))}×`;
+    return `${x.toLocaleString("pt-BR", { maximumFractionDigits: x < 10 ? 1 : 0 })}×`;
+  }
+  function tier(p) {
+    if (p >= 99.99) return { cls: "high", name: "0,01% mais rico" };
+    if (p >= 99.9) return { cls: "high", name: "0,1% mais rico" };
+    if (p >= 99) return { cls: "high", name: "1% mais rico" };
+    if (p >= 90) return { cls: "high", name: "10% mais ricos" };
+    if (p >= 50) return { cls: "mid", name: "Faixa do meio (entre os 50% e os 90%)" };
+    return { cls: "low", name: "50% com menos" };
+  }
+  function decile(p) { return Math.min(10, Math.max(1, Math.floor(p / 10) + 1)); }
+
+  // ---------- Entradas ----------
+  function parseMoney(s) { const d = String(s).replace(/\D/g, ""); return d ? Number(d) : 0; }
+  function bindMoney(input, onChange) {
+    input.addEventListener("input", () => {
+      const n = parseMoney(input.value);
+      const digits = String(input.value).replace(/\D/g, "").slice(0, 13);
+      input.value = digits ? nf0.format(Number(digits)) : "";
+      onChange(n);
+    });
+  }
+  function stepperValue(id, min, max) {
+    const el = document.getElementById(id);
+    let n = Math.round(Number(el.value));
+    if (!isFinite(n) || n < min) n = min;
+    if (n > max) n = max;
+    return n;
+  }
+  document.querySelectorAll(".stepper button").forEach(b => {
+    b.addEventListener("click", () => {
+      const el = document.getElementById(b.dataset.target);
+      const n = Math.min(Number(el.max), Math.max(Number(el.min), (Number(el.value) || 1) + Number(b.dataset.step)));
+      el.value = n;
+      el.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+  });
+
+  // ---------- Gráfico ----------
+  const SVGNS = "http://www.w3.org/2000/svg";
+  function el(tag, attrs, parent) {
+    const e = document.createElementNS(SVGNS, tag);
+    for (const k in attrs) e.setAttribute(k, attrs[k]);
+    if (parent) parent.appendChild(e);
+    return e;
+  }
+  function makeChart(host, cfg) {
+    const state = { p: null, v: null, anim: 0, drawn: false };
+    let geom = null, geomNarrow = false, svg, youG, guideV, guideH, pill, pillText, pillText2;
+
+    function xOf(p, W) {
+      const split = (geomNarrow ? 0.68 : 0.76) * W;
+      if (p <= 99) return (p / 99) * split;
+      const t = Math.min(3, Math.log10(1 / Math.max(100 - p, 0.001))); // 0 em P99 … 3 em P99,999
+      return split + (t / 3) * (W - split);
+    }
+    function render() {
+      const w = Math.max(280, host.clientWidth);
+      const narrow = w < 480;
+      const h = Math.round(Math.min(400, Math.max(270, w * 0.56)));
+      const m = { l: narrow ? 60 : 76, r: 14, t: 30, b: 46 };
+      geomNarrow = narrow;
+      const W = w - m.l - m.r, H = h - m.t - m.b;
+      const yMin = cfg.f(cfg.yDomain[0]), yMax = cfg.f(cfg.yDomain[1]);
+      const X = p => m.l + xOf(p, W);
+      const Y = v => m.t + H - ((cfg.f(Math.min(Math.max(v, cfg.yDomain[0]), cfg.yDomain[1])) - yMin) / (yMax - yMin)) * H;
+      geom = { X, Y, w, h, m, W, H };
+
+      host.innerHTML = "";
+      svg = el("svg", { viewBox: `0 0 ${w} ${h}`, role: "img", "aria-label": cfg.aria });
+      host.appendChild(svg);
+      // faixas
+      el("rect", { x: X(0), y: m.t, width: X(50) - X(0), height: H, class: "band-low" }, svg);
+      el("rect", { x: X(99), y: m.t, width: X(100) - X(99), height: H, class: "band-top" }, svg);
+      el("text", { x: X(25), y: m.t - 10, "text-anchor": "middle", class: "band-label-low" }, svg).textContent = narrow ? "50% com menos" : cfg.lowLabel;
+      el("text", { x: (X(99) + X(100)) / 2, y: m.t - 10, "text-anchor": "middle", class: "band-label-top" }, svg).textContent = narrow ? "1% (zoom)" : "1% mais rico (zoom)";
+      // grade + eixos
+      const g = el("g", { class: "grid" }, svg);
+      cfg.yTicks.forEach(t => {
+        const y = Y(t);
+        el("line", { x1: m.l, x2: m.l + W, y1: y, y2: y, class: t === 0 && cfg.zeroLine ? "zero" : "" }, g);
+        el("text", { x: m.l - 6, y: y + 4, "text-anchor": "end" }, svg).textContent = narrow ? brlShort(t).replace("R$ ", "") : brlShort(t);
+      });
+      const xt = narrow ? [0, 50, 90, 99, 99.99] : [0, 10, 25, 50, 75, 90, 99, 99.9, 99.99, 99.999];
+      xt.forEach(p => {
+        el("line", { x1: X(p), x2: X(p), y1: m.t + H, y2: m.t + H + 5 }, g);
+        el("text", { x: X(p), y: m.t + H + 18, "text-anchor": p === 0 ? "start" : "middle" }, svg).textContent = p === 0 ? "0" : pctText(p).replace("99,999", "99,999");
+      });
+      el("text", { x: m.l + W / 2, y: h - 6, "text-anchor": "middle" }, svg).textContent = "percentil (% da população abaixo)";
+      if (narrow) el("text", { x: 4, y: m.t - 10 }, svg).textContent = "R$";
+      // quebra de escala no P99
+      const bx = X(99), by = m.t + H;
+      el("path", { d: `M${bx - 5},${by + 9} l4,-8 M${bx + 1},${by + 9} l4,-8`, class: "break" }, svg);
+      // curva
+      const pts = [];
+      for (let p = 0; p <= 99; p += 0.25) pts.push(p);
+      for (let t = 0.02; t <= 3.0001; t += 0.02) pts.push(100 - Math.pow(10, -t));
+      const d = pts.map((p, i) => `${i ? "L" : "M"}${X(p).toFixed(1)},${Y(valueAt(cfg.table, p)).toFixed(1)}`).join("");
+      el("path", { d: `${d}L${X(pts[pts.length - 1]).toFixed(1)},${m.t + H}L${X(0)},${m.t + H}Z`, class: "area" }, svg);
+      const curve = el("path", { d, class: "curve" }, svg);
+      if (!state.drawn && !reduceMotion) {
+        const len = curve.getTotalLength();
+        curve.style.strokeDasharray = len;
+        curve.style.strokeDashoffset = len;
+        curve.getBoundingClientRect();
+        curve.style.transition = "stroke-dashoffset 1.4s cubic-bezier(.3,.7,.2,1)";
+        curve.style.strokeDashoffset = 0;
+      }
+      state.drawn = true;
+      // pontos de referência
+      cfg.refs.forEach(r => {
+        const rg = el("g", { class: "ref" }, svg);
+        const x = X(r.p), y = Y(valueAt(cfg.table, r.p));
+        el("circle", { cx: x, cy: y, r: 4 }, rg);
+        el("text", { x: x + (r.dx || 0), y: y + (r.dy || -10), "text-anchor": r.anchor || "middle" }, rg).textContent = r.label;
+      });
+      // você
+      guideV = el("line", { class: "guide" }, svg);
+      guideH = el("line", { class: "guide" }, svg);
+      youG = el("g", {}, svg);
+      el("circle", { r: 9, class: "you-halo" }, youG);
+      el("circle", { r: 7, class: "you-dot" }, youG);
+      pill = el("rect", { rx: 8, height: 38, class: "you-pill" }, svg);
+      pillText = el("text", { class: "you-text" }, svg);
+      pillText2 = el("text", { class: "you-text", style: "font-weight:500" }, svg);
+      if (state.p != null) place(state.p, state.v);
+    }
+    function place(p, v) {
+      if (!geom) return;
+      const { X, Y, m, W, H } = geom;
+      const x = X(p), y = Y(v);
+      youG.setAttribute("transform", `translate(${x.toFixed(1)},${y.toFixed(1)})`);
+      guideV.setAttribute("x1", x); guideV.setAttribute("x2", x); guideV.setAttribute("y1", y); guideV.setAttribute("y2", m.t + H);
+      guideH.setAttribute("x1", m.l); guideH.setAttribute("x2", x); guideH.setAttribute("y1", y); guideH.setAttribute("y2", y);
+      pillText.textContent = "Você está aqui";
+      pillText2.textContent = `P${pctText(p)} · ${brlShort(state.v)}`;
+      const tw = Math.max(pillText.getComputedTextLength ? pillText.getComputedTextLength() : 90, pillText2.getComputedTextLength ? pillText2.getComputedTextLength() : 90) + 20;
+      let px = x - tw / 2;
+      px = Math.max(m.l + 2, Math.min(px, m.l + W - tw - 2));
+      let py = y - 54;
+      if (py < m.t + 2) py = y + 16;
+      if (py + 38 > m.t + H) py = m.t + H - 40;
+      pill.setAttribute("x", px.toFixed(1)); pill.setAttribute("y", py.toFixed(1)); pill.setAttribute("width", tw.toFixed(1));
+      pillText.setAttribute("x", (px + 10).toFixed(1)); pillText.setAttribute("y", (py + 16).toFixed(1));
+      pillText2.setAttribute("x", (px + 10).toFixed(1)); pillText2.setAttribute("y", (py + 31).toFixed(1));
+    }
+    function setYou(p, v, label) {
+      const from = state.p == null ? (reduceMotion ? p : 0) : state.p;
+      state.p = p; state.v = v;
+      svg && svg.setAttribute("aria-label", `${cfg.aria} ${label}`);
+      cancelAnimationFrame(state.anim);
+      if (reduceMotion || from === p) { place(p, v); return; }
+      const t0 = performance.now(), dur = 800;
+      const step = now => {
+        const t = Math.min(1, Math.max(0, (now - t0) / dur)), e = 1 - Math.pow(1 - t, 3);
+        const pp = from + (p - from) * e;
+        place(pp, t < 1 ? valueAt(cfg.table, pp) : v);
+        if (t < 1) state.anim = requestAnimationFrame(step);
+      };
+      state.anim = requestAnimationFrame(step);
+    }
+    let rw = 0;
+    new ResizeObserver(() => { const w = host.clientWidth; if (Math.abs(w - rw) > 2) { rw = w; render(); } }).observe(host);
+    render();
+    return { setYou };
+  }
+
+  // ---------- 100 pessoas ----------
+  function makePeople(host) {
+    const dots = [];
+    for (let i = 0; i < 100; i++) { const d = document.createElement("i"); host.appendChild(d); dots.push(d); }
+    return p => {
+      const below = Math.min(99, Math.floor(p));
+      dots.forEach((d, i) => {
+        d.style.transitionDelay = reduceMotion ? "0ms" : `${i * 6}ms`;
+        d.classList.toggle("below", i < below);
+        d.classList.toggle("me", i === below);
+      });
+    };
+  }
+
+  // ---------- Pirâmide ----------
+  // Camadas da base (i = 0) ao topo. Largura ∝ log10(% do grupo) para o topo continuar visível.
+  function makePyramid(host, cfg) {
+    const state = { pos: null, idx: 0, p: 0, v: 0, anim: 0, first: true };
+    let g = null;
+    function render() {
+      const w = Math.max(300, host.clientWidth);
+      const narrow = w < 520;
+      const L = cfg.layers.length, rowH = narrow ? 58 : 62, gap = 4, top = 6;
+      const h = top + L * rowH + 6;
+      const PW = Math.round(narrow ? w * 0.42 : Math.min(w * 0.5, 440));
+      const cx = PW / 2, lx = PW + (narrow ? 10 : 24);
+      const fmax = Math.log10(cfg.layers[0].share) + 2.4;
+      host.innerHTML = "";
+      const svg = el("svg", { viewBox: `0 0 ${w} ${h}`, role: "img", "aria-label": cfg.aria });
+      host.appendChild(svg);
+      const rows = cfg.layers.map((ly, i) => {
+        const y = top + (L - 1 - i) * rowH;
+        const lw = Math.max(16, PW * (Math.log10(ly.share) + 2.4) / fmax);
+        return Object.assign({}, ly, { y, lw, x: cx - lw / 2 });
+      });
+      rows.forEach((r, i) => {
+        r.rect = el("rect", { x: r.x.toFixed(1), y: r.y + gap / 2, width: r.lw.toFixed(1), height: rowH - gap, rx: 6, class: `layer ${r.cls}` }, svg);
+        r.rect.style.animationDelay = `${i * 90}ms`;
+        if (!state.first) r.rect.style.animation = "none";
+        const mid = r.y + rowH / 2;
+        el("line", { x1: (r.x + r.lw + 4).toFixed(1), x2: lx - 6, y1: mid, y2: mid, class: "leader" }, svg);
+        el("text", { x: lx, y: mid - 9, class: "pl-name" }, svg).textContent = r.name;
+        el("text", { x: lx, y: mid + 7, class: "pl-detail" }, svg).textContent = narrow ? r.short : r.detail;
+        r.status = el("text", { x: lx, y: mid + 23, class: "pl-status" }, svg);
+      });
+      state.first = false;
+      g = { rows, rowH, cx, svg };
+      g.you = el("g", {}, svg);
+      el("circle", { r: 9, class: "you-halo" }, g.you);
+      el("circle", { r: 7, class: "you-dot" }, g.you);
+      el("text", { x: 13, y: 5, class: "you-tag" }, g.you).textContent = "você";
+      if (state.pos != null) { paint(); place(state.pos); }
+    }
+    function place(pos) {
+      const i = Math.min(g.rows.length - 1, Math.floor(pos)), f = pos - i, r = g.rows[i];
+      const y = r.y + g.rowH - 10 - f * (g.rowH - 20);
+      g.you.setAttribute("transform", `translate(${g.cx.toFixed(1)},${y.toFixed(1)})`);
+    }
+    function paint() {
+      const { v, idx } = state;
+      g.rows.forEach((r, j) => {
+        const here = j === idx;
+        r.rect.classList.toggle("here", here);
+        r.status.classList.toggle("here", here);
+        if (here) r.status.textContent = "você está aqui";
+        else if (j < idx) r.status.textContent = "abaixo de você";
+        else {
+          const ratio = v > 0 ? r.entry / v : 0;
+          r.status.textContent = ratio >= 3 ? `${times(ratio)} ${cfg.yours}` : `faltam ${brl(r.entry - v)}`;
+        }
+      });
+      g.svg.setAttribute("aria-label", `${cfg.aria} Você está na camada: ${g.rows[idx].name}.`);
+    }
+    function setYou(p, v) {
+      const L = cfg.layers.length;
+      let idx = cfg.layers.findIndex(ly => p < ly.pHigh);
+      if (idx < 0) idx = L - 1;
+      const ly = cfg.layers[idx];
+      const pos = idx + Math.min(0.999, Math.max(0, (p - ly.pLow) / (ly.pHigh - ly.pLow)));
+      const from = state.pos == null ? (reduceMotion ? pos : 0) : state.pos;
+      Object.assign(state, { p, v, idx, pos });
+      paint();
+      cancelAnimationFrame(state.anim);
+      if (reduceMotion || from === pos) { place(pos); return; }
+      const t0 = performance.now(), dur = 900;
+      const step = now => {
+        const t = Math.min(1, Math.max(0, (now - t0) / dur)), e = 1 - Math.pow(1 - t, 3);
+        place(from + (pos - from) * e);
+        if (t < 1) state.anim = requestAnimationFrame(step);
+      };
+      state.anim = requestAnimationFrame(step);
+    }
+    let rw = 0;
+    new ResizeObserver(() => { const w = host.clientWidth; if (Math.abs(w - rw) > 2) { rw = w; render(); } }).observe(host);
+    render();
+    return { setYou };
+  }
+
+  // ================= RENDA =================
+  const R = {
+    total: document.getElementById("renda-total"),
+    people: document.getElementById("renda-pessoas"),
+  };
+  const P50_INC = 1490;
+  const P999_INC = valueAt(INCOME, 99.9);
+  const P9999_INC = valueAt(INCOME, 99.99);
+  const incomePyr = makePyramid(document.getElementById("renda-pyr"), {
+    aria: "Pirâmide da renda domiciliar per capita no Brasil, em seis camadas.",
+    yours: "a sua",
+    layers: [
+      { name: "50% de menor renda", detail: "até R$ 1.490 por pessoa · 106 milhões", short: "até R$ 1.490", share: 50, pLow: 0, pHigh: 50, entry: 0, cls: "s1" },
+      { name: "40% do meio", detail: "de R$ 1.490 a R$ 4.609 · 85 milhões", short: "R$ 1.490 a 4.609", share: 40, pLow: 50, pHigh: 90, entry: 1490, cls: "s2" },
+      { name: "10% mais ricos", detail: "a partir de R$ 4.609 · 21 milhões", short: "desde R$ 4.609", share: 9, pLow: 90, pHigh: 99, entry: 4609, cls: "s3" },
+      { name: "1% mais rico", detail: "a partir de R$ 15.214 · 2,1 milhões", short: "desde R$ 15.214", share: 0.9, pLow: 99, pHigh: 99.9, entry: P99, cls: "s4" },
+      { name: "0,1% mais rico", detail: `a partir de ≈ ${brlShort(P999_INC)} · 210 mil`, short: `desde ≈ ${brlShort(P999_INC)}`, share: 0.09, pLow: 99.9, pHigh: 99.99, entry: P999_INC, cls: "s5" },
+      { name: "0,01% mais rico", detail: `a partir de ≈ ${brlShort(P9999_INC)} · 21 mil`, short: `desde ≈ ${brlShort(P9999_INC)}`, share: 0.01, pLow: 99.99, pHigh: 101, entry: P9999_INC, cls: "s6" },
+    ],
+  });
+  const incomeChart = makeChart(document.getElementById("renda-chart"), {
+    table: INCOME,
+    f: v => Math.log10(Math.max(v, 100)),
+    yDomain: [100, 1000000],
+    yTicks: [100, 1000, 10000, 100000, 1000000],
+    lowLabel: "50% com menos renda",
+    aria: "Curva da renda domiciliar per capita no Brasil por percentil.",
+    refs: [
+      { p: 50, label: "mediana", dy: -12 },
+      { p: 90, label: "10%", dx: -8, dy: -10, anchor: "end" },
+      { p: 99, label: "1%", dx: -8, dy: -6, anchor: "end" },
+      { p: 99.9, label: "0,1%", dx: -8, dy: -6, anchor: "end" },
+    ],
+  });
+  const incomePeople = makePeople(document.getElementById("renda-people"));
+  let incomeTouched = false;
+
+  function updateIncome() {
+    const total = parseMoney(R.total.value);
+    const n = stepperValue("renda-pessoas", 1, 30);
+    const pc = total / n;
+    document.getElementById("renda-pc").textContent = brl(pc);
+    document.getElementById("renda-example").hidden = incomeTouched;
+    const p = total > 0 ? percentileOf(INCOME, pc) : 0;
+    const t = tier(p);
+    const badge = document.getElementById("renda-badge");
+    badge.className = "badge " + t.cls;
+    badge.textContent = t.cls === "low" ? "50% com menos renda" : t.name;
+    const pt = pctText(p);
+    const big = document.getElementById("renda-big");
+    const sub = document.getElementById("renda-sub");
+    if (total <= 0) {
+      big.innerHTML = "Digite a renda mensal da casa para ver sua posição.";
+      sub.textContent = "";
+    } else {
+      big.innerHTML = `Sua renda por pessoa é maior que a de <span class="hl">${pt}%</span> dos brasileiros.`;
+      if (p >= 99.99) sub.textContent = `Você está entre os 0,01% de maior renda. Menos de 1 em cada ${oneIn(99.99)} brasileiros tem renda por pessoa maior que a sua. Neste nível as estimativas ficam bem incertas.`;
+      else if (p >= 90) sub.textContent = `Só 1 em cada ${oneIn(p)} brasileiros vive numa casa com renda por pessoa maior que a sua.`;
+      else if (p >= 50) sub.textContent = `Você está acima da mediana: metade do país vive com até ${brl(P50_INC)} por pessoa. Ainda assim, ${nf0.format(Math.round(100 - p))} em cada 100 brasileiros têm renda por pessoa maior.`;
+      else sub.textContent = `Você está entre os 50% com menos renda, junto com cerca de 106 milhões de pessoas. Metade do país vive com até ${brl(P50_INC)} por pessoa.`;
+    }
+    document.getElementById("renda-p").textContent = "P" + pt;
+    document.getElementById("renda-d").textContent = `${decile(p)}º`;
+    document.getElementById("renda-x").textContent = times(pc / P50_INC);
+    incomeChart.setYou(p, Math.max(pc, 0), `Você está no percentil ${pt}.`);
+    incomePeople(p);
+    document.getElementById("renda-people-cap").textContent = total <= 0 ? "" :
+      p >= 99 ? `Dos 100, 99 teriam renda por pessoa menor que a sua. Você seria a pessoa em amarelo. No topo, a diferença está nas casas decimais: você supera ${pt}% da população.`
+              : `Dos 100, ${Math.floor(p)} teriam renda por pessoa menor que a sua (em verde). Você é o ponto amarelo.`;
+    incomePyr.setYou(p, Math.max(pc, 0));
+  }
+  bindMoney(R.total, () => { incomeTouched = true; updateIncome(); });
+  R.people.addEventListener("input", () => { incomeTouched = true; updateIncome(); });
+  document.querySelectorAll("#renda-chips button").forEach(b => b.addEventListener("click", () => {
+    R.total.value = nf0.format(Number(b.dataset.v));
+    R.people.value = 1;
+    incomeTouched = true;
+    updateIncome();
+  }));
+  document.getElementById("f-renda").addEventListener("submit", e => e.preventDefault());
+
+  // ================= PATRIMÔNIO =================
+  const W_IDS = ["w-imoveis", "w-veiculos", "w-invest", "w-outros", "w-dividas"];
+  const P50_W = 51671;
+  const wealthPyr = makePyramid(document.getElementById("pat-pyr"), {
+    aria: "Pirâmide do patrimônio líquido por adulto no Brasil, em seis camadas.",
+    yours: "o seu",
+    layers: [
+      { name: "50% com menos patrimônio", detail: "até R$ 51.671 por adulto", short: "até R$ 51,7 mil", share: 50, pLow: 0, pHigh: 50, entry: -Infinity, cls: "s1" },
+      { name: "40% do meio", detail: "de R$ 51.671 a R$ 411.818", short: "R$ 52 mil a 412 mil", share: 40, pLow: 50, pHigh: 90, entry: P50_W, cls: "s2" },
+      { name: "10% mais ricos", detail: "a partir de R$ 411.818", short: "desde R$ 412 mil", share: 9, pLow: 90, pHigh: 99, entry: 411818, cls: "s3" },
+      { name: "1% mais rico", detail: "a partir de R$ 2,12 milhões", short: "desde R$ 2,1 mi", share: 0.9, pLow: 99, pHigh: 99.9, entry: 2121793, cls: "s4" },
+      { name: "0,1% mais rico", detail: "a partir de R$ 11,99 milhões", short: "desde R$ 12 mi", share: 0.09, pLow: 99.9, pHigh: 99.99, entry: 11992390, cls: "s5" },
+      { name: "0,01% mais rico", detail: "a partir de R$ 61,41 milhões", short: "desde R$ 61,4 mi", share: 0.01, pLow: 99.99, pHigh: 101, entry: 61410076, cls: "s6" },
+    ],
+  });
+  const wealthChart = makeChart(document.getElementById("pat-chart"), {
+    table: WEALTH,
+    f: v => Math.sign(v) * Math.log10(1 + Math.abs(v) / 1000),
+    yDomain: [-500000, 1e9],
+    yTicks: [-100000, 0, 10000, 100000, 1000000, 10000000, 100000000, 1000000000],
+    zeroLine: true,
+    lowLabel: "50% com menos patrimônio",
+    aria: "Curva do patrimônio líquido por adulto no Brasil por percentil.",
+    refs: [
+      { p: 50, label: "mediana", dy: -12 },
+      { p: 90, label: "10%", dx: -8, dy: -10, anchor: "end" },
+      { p: 99, label: "1%", dx: -8, dy: -6, anchor: "end" },
+      { p: 99.9, label: "0,1%", dx: -8, dy: -6, anchor: "end" },
+    ],
+  });
+  const wealthPeople = makePeople(document.getElementById("pat-people"));
+  let wealthTouched = false;
+
+  function updateWealth() {
+    const [im, ve, inv, ou, dv] = W_IDS.map(id => parseMoney(document.getElementById(id).value));
+    const adults = stepperValue("w-adultos", 1, 20);
+    const net = im + ve + inv + ou - dv;
+    const pa = net / adults;
+    document.getElementById("pat-pa").textContent = brl(pa);
+    document.getElementById("pat-example").hidden = wealthTouched;
+    const p = percentileOf(WEALTH, pa);
+    const t = tier(p);
+    const badge = document.getElementById("pat-badge");
+    badge.className = "badge " + t.cls;
+    badge.textContent = t.cls === "low" ? "50% com menos patrimônio" : t.name;
+    const pt = pctText(p);
+    document.getElementById("pat-big").innerHTML = `Seu patrimônio por adulto é maior que o de <span class="hl">${pt}%</span> dos adultos brasileiros.`;
+    const sub = document.getElementById("pat-sub");
+    if (pa < 0) sub.textContent = "Hoje você deve mais do que tem, como cerca de 1 em cada 10 adultos no Brasil. Isso é comum em quem financia a casa própria ou enfrenta um momento de aperto.";
+    else if (p >= 99.99) sub.textContent = `Você está entre os 0,01% mais ricos em patrimônio. Neste nível as estimativas ficam bem incertas.`;
+    else if (p >= 90) sub.textContent = `Só 1 em cada ${oneIn(p)} adultos brasileiros tem patrimônio maior que o seu.`;
+    else if (p >= 50) sub.textContent = `Você está acima da mediana: metade dos adultos tem até ${brl(P50_W)} de patrimônio líquido.`;
+    else sub.textContent = `Você está entre os 50% com menos patrimônio. Metade dos adultos tem até ${brl(P50_W)}, e juntos eles somam só 2% da riqueza do país.`;
+    document.getElementById("pat-p").textContent = "P" + pt;
+    document.getElementById("pat-d").textContent = `${decile(p)}º`;
+    document.getElementById("pat-x").textContent = pa <= 0 ? "—" : times(pa / P50_W);
+    wealthChart.setYou(p, pa, `Você está no percentil ${pt}.`);
+    wealthPeople(p);
+    document.getElementById("pat-people-cap").textContent =
+      p >= 99 ? `Dos 100, 99 teriam patrimônio menor que o seu. Você seria o ponto amarelo e supera ${pt}% dos adultos.`
+              : `Dos 100 adultos, ${Math.floor(p)} teriam patrimônio menor que o seu (em verde). Você é o ponto amarelo.`;
+    wealthPyr.setYou(p, pa);
+  }
+  W_IDS.forEach(id => bindMoney(document.getElementById(id), () => { wealthTouched = true; updateWealth(); }));
+  document.getElementById("w-adultos").addEventListener("input", () => { wealthTouched = true; updateWealth(); });
+  document.getElementById("f-pat").addEventListener("submit", e => e.preventDefault());
+
+  updateIncome();
+  updateWealth();
+})();
+</script>
+</body>
+</html>
